@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = /Users/oliver.dalton/projects/third-party/tz/sneaky-api
+	branch = master
+	commit = 455d49d817bab9b8d6010778bc973072ad665407
+	method = merge
+	cmdver = 0.4.3
+	parent = f63926aad3f6ec7fc996c16cb084720907ed64d8
