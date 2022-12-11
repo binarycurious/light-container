@@ -1,10 +1,37 @@
 package container
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"log"
 
 	"github.com/binarycurious/light-container/telemetry"
 )
+
+// Container - defines a simple container interface for executing tasks in a standard way with access to a global state
+type Container interface {
+	GetState() GlobalState
+	GetLogger() telemetry.Logger
+	AddRoutine(key *string, routine *ContainerRoutine) routineKey
+	Execute(key *routineKey)
+	Subscribe(key *routineKey) <-chan *interface{}
+	SendToChannel(key *routineKey, msg *interface{})
+	GetRoutineKey(key *string) routineKey
+}
+
+// ContainerRoutine - defines the routine that is executed by the container
+type ContainerRoutine interface {
+	Execute(routineKey routineKey, container *Container)
+}
+
+// GlobalContainer :  is an implementation of a Global Container
+type GlobalContainer struct {
+	logger   telemetry.Logger
+	state    GlobalState
+	routines map[string]ContainerRoutine
+	inChans  map[string]chan *interface{}
+	outChans map[string]chan *interface{}
+}
 
 // NewContainer - initialize a new IoC container
 func (c *GlobalContainer) NewContainer(state GlobalState, logger *telemetry.Logger) *Container {
@@ -51,21 +78,42 @@ func (c *GlobalContainer) SetState(s GlobalState) {
 	c.state = s
 }
 
+// GetRoutineKey : Get a key for given routine name (This does not take into account name conflicts / duplicates)
+func (c *GlobalContainer) GetRoutineKey(routineName *string) routineKey {
+	return routineKey{
+		name: routineName,
+		key:  fmt.Sprintf("%x", sha1.Sum([]byte(*routineName)))}
+}
+
 // Execute : impl of container Execute function
-func (c *GlobalContainer) Execute(key string) {
-	c.routines[key]
-	go c.routines[key].Execute()
+func (c *GlobalContainer) Execute(key *routineKey) {
+	go c.routines[key.key].Execute(*key, c)
 }
 
-// AddRoutine : impl of add routine functions for GlobalContainer
-func (c *GlobalContainer) AddRoutine(key string, routine *ContainerRoutine) {
-	if c.routines == nil {
-		c.routines = make(map[string]ContainerRoutine, 5)
+// AddRoutine : impl of add routine functions for GlobalContainer (will modify routineName if there is a conflict)
+func (c *GlobalContainer) AddRoutine(routineName *string, routine *ContainerRoutine) routineKey {
+	if len(c.routines) == 0 {
+		c.routines = make(map[string]ContainerRoutine, 10)
 	}
-	c.routines[key] = *routine
+	rKey := c.GetRoutineKey(routineName)
+	_, retry := c.routines[rKey.key]
+
+	for retry {
+		*routineName = ""
+		rKey = c.GetRoutineKey(routineName)
+		_, retry = c.routines[rKey.key]
+	}
+
+	c.routines[rKey.key] = *routine
+	return rKey
 }
 
-// GetState : impl of get state functions for GlobalContainer
+// GetState : impl of get state function for GlobalContainer
 func (c *GlobalContainer) GetState() GlobalState {
 	return c.state
+}
+
+// GetLogger : impl of get logger function for GlobalContainer
+func (c *GlobalContainer) GetLogger() telemetry.Logger {
+	return c.logger
 }

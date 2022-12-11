@@ -6,8 +6,8 @@ import (
 )
 
 type routineKey struct {
-	name string
-	id   int64
+	name *string
+	key  string
 }
 
 // GlobalState for passing global objects around
@@ -38,11 +38,12 @@ type Container interface {
 	Execute(key *routineKey)
 	Subscribe(key *routineKey) <-chan *interface{}
 	SendToChannel(key *routineKey, msg *interface{})
+	GetRoutineKey(key *string) routineKey
 }
 
 // ContainerRoutine - defines the routine that is executed by the container
 type ContainerRoutine interface {
-	Execute(routineKey *string, container *Container)
+	Execute(routineKey routineKey, container *Container)
 }
 
 // GlobalContainer :  is an implementation of a Global Container
