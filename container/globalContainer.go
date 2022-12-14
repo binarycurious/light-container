@@ -10,22 +10,21 @@ import (
 
 // GlobalContainer :  is an implementation of a Global Container
 type GlobalContainer struct {
-	logger        *telemetry.Logger
+	logger        telemetry.Logger
 	state         *GlobalState
 	routines      map[string]*ContainerRoutine
-	inChans       map[string]chan *interface{}
-	outChans      map[string][]chan *interface{}
-	containerLock sync.Mutex
+	inChans       map[string]chan interface{}
+	outChans      map[string][]chan interface{}
+	containerLock *sync.Mutex
 }
 
 // NewContainer - initialize a new IoC container, nil logger will create a new logger based on the globalstate settings
-func (c *GlobalContainer) NewContainer(state GlobalState, logger *telemetry.Logger) *Container {
+func (c *GlobalContainer) NewContainer(state GlobalState, logger telemetry.Logger) *Container {
 
 	c.containerLock.Lock()
 
 	if logger == nil {
-		lPtr := telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail})
-		logger = &lPtr
+		logger = telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail})
 	}
 	c.logger = logger
 
@@ -33,13 +32,13 @@ func (c *GlobalContainer) NewContainer(state GlobalState, logger *telemetry.Logg
 
 	if !state.intitialized {
 		msg := "FATAL: Attempt to initialize container state with an un-initialized global state (call NewState())"
-		(*c.logger).LogFatal(&msg)
+		c.logger.LogFatal(&msg)
 		validSate = false
 	}
 
 	if c.state.intitialized {
 		msg := "FATAL: Attempt to set container state after already intialized"
-		(*c.logger).LogFatal(&msg)
+		c.logger.LogFatal(&msg)
 		validSate = false
 	}
 
@@ -64,23 +63,37 @@ func (c *GlobalContainer) GetRoutineKey(routineName *string) *routineKey {
 
 // GetState @impl
 func (c *GlobalContainer) GetState() *GlobalState {
-	panic("not implemented") // TODO: Implement
+	return c.state
 }
 
 // GetLogger @impl
-func (c *GlobalContainer) GetLogger() *telemetry.Logger {
-	panic("not implemented") // TODO: Implement
+func (c *GlobalContainer) GetLogger() telemetry.Logger {
+	return c.logger
 }
 
-// AddRoutine @impl
-func (c *GlobalContainer) AddRoutine(key *string, routine *ContainerRoutine) *routineKey {
-	panic("not implemented") // TODO: Implement
+// AddRoutine : impl of Container.AddRoutine (will modify routineName if there is a conflict)
+func (c *GlobalContainer) AddRoutine(routineName *string, routine ContainerRoutine) *routineKey {
+	if len(c.routines) == 0 {
+		c.routines = make(map[string]*ContainerRoutine, 10)
+	}
+	rKey := c.GetRoutineKey(routineName)
+	_, retry := c.routines[rKey.key]
+
+	retries := 0
+	for retry {
+		retries++
+		*routineName = fmt.Sprintf("%s_%d", *routineName, retries)
+		rKey = c.GetRoutineKey(routineName)
+		_, retry = c.routines[rKey.key]
+	}
+
+	c.routines[rKey.key] = &routine
+	return rKey
 }
 
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *routineKey) {
-
-	go (*c.routines[key.key]).Execute(key, c)
+	go (*c.routines[key.key]).Execute(key, Context(c))
 }
 
 // Subscribe @impl
@@ -88,7 +101,17 @@ func (c *GlobalContainer) Subscribe(key *routineKey) <-chan *interface{} {
 	panic("not implemented") // TODO: Implement
 }
 
-// SendToChannel @impl
+// Send @impl
 func (c *GlobalContainer) Send(key *routineKey, msg *interface{}) {
+	panic("not implemented") // TODO: Implement
+}
+
+// Start @impl Continer.Start
+func (c *GlobalContainer) Start() {
+	panic("not implemented") // TODO: Implement
+}
+
+// Stop @impl Container.Stop
+func (c *GlobalContainer) Stop() {
 	panic("not implemented") // TODO: Implement
 }
