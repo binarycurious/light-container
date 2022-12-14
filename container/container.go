@@ -37,7 +37,7 @@ type ContainerRoutine interface {
 type GlobalContainer struct {
 	logger        *telemetry.Logger
 	state         *GlobalState
-	routines      *map[string]ContainerRoutine
+	routines      *map[string]*ContainerRoutine
 	inChans       *map[string]chan *interface{}
 	outChans      *map[string]chan *interface{}
 	containerLock sync.Mutex
