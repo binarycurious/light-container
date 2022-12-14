@@ -97,12 +97,12 @@ func (c *GlobalContainer) Execute(key *routineKey) {
 }
 
 // Subscribe @impl
-func (c *GlobalContainer) Subscribe(key *routineKey) <-chan *interface{} {
+func (c *GlobalContainer) Subscribe(key *routineKey) <-chan interface{} {
 	panic("not implemented") // TODO: Implement
 }
 
 // Send @impl
-func (c *GlobalContainer) Send(key *routineKey, msg *interface{}) {
+func (c *GlobalContainer) Send(key *routineKey, msg interface{}) {
 	panic("not implemented") // TODO: Implement
 }
 
