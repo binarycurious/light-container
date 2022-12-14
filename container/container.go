@@ -10,8 +10,8 @@ type Container interface {
 	GetLogger() telemetry.Logger
 	AddRoutine(key *string, routine ContainerRoutine) *routineKey
 	Execute(key *routineKey)
-	Subscribe(key *routineKey) <-chan *interface{}
-	Send(key *routineKey, msg *interface{})
+	Subscribe(key *routineKey) <-chan interface{}
+	Send(key *routineKey, msg interface{})
 	GetRoutineKey(key *string) *routineKey
 	Start()
 	Stop()
