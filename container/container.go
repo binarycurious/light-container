@@ -24,6 +24,8 @@ type Context interface {
 	GetLogger() telemetry.Logger
 	Subscribe(key *RoutineKey) <-chan interface{}
 	Send(key *RoutineKey, msg interface{})
+	Publish(msg interface{})
+	MyKey() int64
 }
 
 // Routine - defines the routine that is executed by the container

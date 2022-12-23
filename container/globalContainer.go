@@ -105,6 +105,11 @@ func (c *GlobalContainer) AddRoutine(routineName *string, routine Routine) *Rout
 	return rKey
 }
 
+// Publish - impl of Context publish method (used for publishing messages from a container routine)
+func (c *GlobalContainer) Publish(msg interface{}) {
+
+}
+
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *RoutineKey) {
 	go (c.routines[key.key]).Execute(key, Context(c))
