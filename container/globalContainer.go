@@ -25,9 +25,9 @@ func CreateDefaultGlobalContainer(state *GlobalState) Container {
 }
 
 // NewContainer - initialize a new IoC container, nil logger will create a new logger based on the globalstate settings
-func (c *GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger) Container {
+func (GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger) Container {
 
-	c.containerLock.Lock()
+	c := GlobalContainer{}
 
 	if logger == nil {
 		logger = telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail})
@@ -55,9 +55,7 @@ func (c *GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logg
 		c.state = state
 	}
 
-	c.containerLock.Unlock()
-
-	return Container(c)
+	return Container(&c)
 }
 
 // GetRoutineKey : Get a key for given routine name (This does not take into account name conflicts / duplicates)
@@ -105,23 +103,19 @@ func (c *GlobalContainer) AddRoutine(routineName *string, routine Routine) *Rout
 	return rKey
 }
 
-// Publish - impl of Context publish method (used for publishing messages from a container routine)
-func (c *GlobalContainer) Publish(msg interface{}) {
-
-}
-
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *RoutineKey) {
-	go (c.routines[key.key]).Execute(key, Context(c))
+	ctx := RoutineContext{}.NewRoutineContext(key, Container(c))
+	go (c.routines[key.key]).Execute(Context(ctx))
+}
+
+// Send @impl
+func (c *GlobalContainer) Send(key *RoutineKey, msg interface{}) error {
+	panic("not implemented") // TODO: Implement
 }
 
 // Subscribe @impl
 func (c *GlobalContainer) Subscribe(key *RoutineKey) <-chan interface{} {
-
-}
-
-// Send @impl
-func (c *GlobalContainer) Send(key *RoutineKey, msg interface{}) {
 	panic("not implemented") // TODO: Implement
 }
 

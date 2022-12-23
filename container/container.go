@@ -9,7 +9,7 @@ type Container interface {
 	GetState() *GlobalState
 	GetLogger() telemetry.Logger
 	Subscribe(key *RoutineKey) <-chan interface{}
-	Send(key *RoutineKey, msg interface{})
+	Send(key *RoutineKey, msg interface{}) error
 
 	Execute(key *RoutineKey)
 	AddRoutine(key *string, routine Routine) *RoutineKey
@@ -23,12 +23,11 @@ type Context interface {
 	GetState() *GlobalState
 	GetLogger() telemetry.Logger
 	Subscribe(key *RoutineKey) <-chan interface{}
-	Send(key *RoutineKey, msg interface{})
-	Publish(msg interface{})
-	MyKey() int64
+	Send(key *RoutineKey, msg interface{}) error
+	Publish(msg interface{}) error
 }
 
 // Routine - defines the routine that is executed by the container
 type Routine interface {
-	Execute(RoutineKey *RoutineKey, container Context) <-chan interface{}
+	Execute(ctx Context) <-chan interface{}
 }
