@@ -18,22 +18,22 @@ type GlobalContainer struct {
 	containerLock sync.Mutex
 }
 
-// CreateDefaultGlobalContainer Setup a default GlobalContainer for registering Routines
-func CreateDefaultGlobalContainer(state *GlobalState) Container {
-	c := GlobalContainer{}
+// NewDefaultContainer Setup a default GlobalContainer for registering Routines
+func (c GlobalContainer) NewDefaultContainer(state *GlobalState) Container {
 	return c.NewContainer(state, nil)
 }
 
 // NewContainer - initialize a new IoC container, nil logger will create a new logger based on the globalstate settings
-func (GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger) Container {
+func (c GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger) Container {
 
-	c := GlobalContainer{}
+	c.containerLock.Lock()
 
 	if logger == nil {
 		logger = telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail})
 	}
 	c.logger = logger
 
+	/*Setup channel register vars*/
 	c.inChans = make(map[string]chan interface{}, 100)
 	c.outChans = make(map[string][]chan interface{}, 100)
 
@@ -54,6 +54,8 @@ func (GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger)
 	if validSate {
 		c.state = state
 	}
+
+	c.containerLock.Unlock()
 
 	return Container(&c)
 }
@@ -111,6 +113,11 @@ func (c *GlobalContainer) Execute(key *RoutineKey) {
 
 // Send @impl
 func (c *GlobalContainer) Send(key *RoutineKey, msg interface{}) error {
+	panic("not implemented") // TODO: Implement
+}
+
+// Publish @impl
+func (c *GlobalContainer) Publish(key *RoutineKey, msg interface{}) error {
 	panic("not implemented") // TODO: Implement
 }
 
