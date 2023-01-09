@@ -4,16 +4,6 @@ import (
 	"github.com/binarycurious/light-container/config"
 )
 
-type RoutineKey struct {
-	name *string
-	key  string
-}
-
-// GetKey - return the routine key
-func (rk *RoutineKey) GetKey() string {
-	return rk.key
-}
-
 // GlobalState for passing global objects around
 type GlobalState struct {
 	intitialized bool
