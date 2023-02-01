@@ -14,8 +14,8 @@ type StandardRoutine struct {
 }
 
 // NewRoutine - create a new container.Routine for registration
-func (sr StandardRoutine) NewRoutine(name *string, outChan chan container.RoutineMsg, routine func(container.Context, chan<- container.RoutineMsg, <-chan container.RoutineMsg) error) (container.Routine, error) {
-	sr.name = name
+func (sr StandardRoutine) NewRoutine(name string, outChan chan container.RoutineMsg, routine func(container.Context, chan<- container.RoutineMsg, <-chan container.RoutineMsg) error) (container.Routine, error) {
+	sr.name = &name
 	sr.outChan = outChan
 	sr.routine = routine
 

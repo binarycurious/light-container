@@ -14,7 +14,7 @@ type RoutineContext struct {
 
 // NewRoutineContext - Create a standard context instance
 func (RoutineContext) NewRoutineContext(k *RoutineKey, c Container) *RoutineContext {
-	p := RoutineContext{key: k}
+	p := RoutineContext{key: k, container: c}
 	return &p
 }
 

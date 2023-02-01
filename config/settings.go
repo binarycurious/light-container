@@ -1,10 +1,13 @@
 package config
 
+import "github.com/binarycurious/light-container/telemetry"
+
 // Settings object for defined and custom settings values
 type Settings struct {
 	Environment string `json:"environment"`
 	Hostname    string `json:"hostname"`
 	Hardfail    bool   `json:"containerHardfail"`
+	LogLevel    telemetry.LogLevel
 	appended    map[string]interface{}
 }
 

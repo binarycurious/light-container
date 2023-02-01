@@ -32,12 +32,13 @@ func (c GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logge
 	c.containerLock.Lock()
 
 	if logger == nil {
-		logger = telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail})
+		logger = telemetry.Logger(&GlobalLogger{hardfail: state.settings.Hardfail, loglevel: state.settings.LogLevel})
 	}
 	c.logger = logger
 
 	/*Setup channel register vars*/
 	c.inChans = make(map[string]chan RoutineMsg, 100)
+	c.outChans = make(map[string]<-chan RoutineMsg, 100)
 	c.subChans = make(map[string][]chan RoutineMsg, 100)
 
 	validSate := true
