@@ -130,22 +130,16 @@ func (c *GlobalContainer) AddNamedRoutine(routineName *string, routine Routine) 
 }
 
 // Execute : impl of container Execute function
-func (c *GlobalContainer) Execute(key *RoutineKey) error {
+func (c *GlobalContainer) Execute(key *RoutineKey, wg *sync.WaitGroup) error {
 
 	rInCh := c.inChans[key.key]
 	rOutCh := c.outChans[key.key]
 
-	ctx := NewRoutineContext(key, Container(c), rInCh, rOutCh)
+	ctx := NewRoutineContext(key, Container(c), rInCh, rOutCh, wg)
 
-	go (c.routines[key.key]).Execute(Context(ctx))
+	(c.routines[key.key]).Execute(Context(ctx))
 
 	return nil
-}
-
-// ExecuteWait - execute with WG
-func (c *GlobalContainer) ExecuteWait(key *RoutineKey, wg *sync.WaitGroup) error {
-	defer wg.Done()
-	return c.Execute(key)
 }
 
 // Send @impl - send to a routine channel
@@ -176,6 +170,7 @@ func (c *GlobalContainer) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) 
 // Start @impl Continer.Start - Spins up all container routines and msg wiring
 func (c *GlobalContainer) Start(wg *sync.WaitGroup) {
 	defer (*wg).Done()
+
 	c.containerLock.Lock()
 
 	if c.running {
@@ -188,15 +183,13 @@ func (c *GlobalContainer) Start(wg *sync.WaitGroup) {
 	c.containerLock.Unlock()
 
 	go func(c *GlobalContainer) {
-		routineWg := sync.WaitGroup{}
-
 		for k := range c.keys {
-			routineWg.Add(1)
+			(*wg).Add(1)
 			rk := c.keys[k]
-			go c.ExecuteWait(&rk, &routineWg)
+			go c.Execute(&rk, wg)
 			fmt.Printf("running go execute %s\n", *rk.name)
 		}
-		routineWg.Wait()
+		wg.Wait()
 	}(c)
 
 	for c.running == true {

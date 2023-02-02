@@ -12,13 +12,13 @@ type Container interface {
 	GetLogger() telemetry.Logger                                     //Return the container logger
 	Subscribe(key *RoutineKey) (<-chan RoutineMsg, error)            //Subscribe to a routine channel
 	Send(key *RoutineKey, msg RoutineMsg) error                      //Send msg to a given routine
-	Execute(key *RoutineKey) error                                   //Execute a routine
+	Execute(key *RoutineKey, wg *sync.WaitGroup) error               //Execute a routine
 	AddRoutine(routine Routine) RoutineKey                           //Add a routine
 	AddNamedRoutine(routineName *string, routine Routine) RoutineKey //Add a routine with a name override
 	GetRoutineKey(routineName *string) *RoutineKey                   //Get a routineKey from the string id
-	Start(wg *sync.WaitGroup)
-	Stop()
-	IsRunning() bool
+	Start(wg *sync.WaitGroup)                                        //Start the routine execution process
+	Stop()                                                           //Stop the container
+	IsRunning() bool                                                 //Is continer in the running state
 }
 
 // Context - The context ref. exposing limited set of container methods to the ContainerRoutines
@@ -32,6 +32,7 @@ type Context interface {
 	Publish(msg RoutineMsg) error
 	GetReceiver() (<-chan RoutineMsg, error)
 	ContainerIsRunning() bool
+	EndRoutine()
 }
 
 // Routine - defines the routine that is executed by the container and the channel that it exports for subscription

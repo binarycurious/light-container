@@ -26,11 +26,12 @@ func main() {
 
 		ctx.Send(&r2key, container.RoutineMsg(&msg))
 
+		r2ch, err := ctx.Subscribe(&r2key)
+		if err != nil {
+			logger.LogFatal("Failed to subscribe to r2 out channel")
+		}
+
 		for ctx.ContainerIsRunning() {
-			r2ch, err := ctx.Subscribe(&r2key)
-			if err != nil {
-				logger.LogFatal("Failed to subscribe to r2 out channel")
-			}
 			select {
 			case r2msg := <-r2ch:
 				switch msgVal := r2msg.GetMsg().(type) {
@@ -39,7 +40,8 @@ func main() {
 				}
 			}
 		}
-
+		fmt.Printf("Go routine (%s) ending...", ctx.GetRoutineName())
+		ctx.EndRoutine()
 		return nil
 	}
 
@@ -66,13 +68,13 @@ func main() {
 			case msg := <-ch:
 				logger.Log("Received msg on routine: " + ctx.GetRoutineName())
 				logger.Log(fmt.Sprint((msg).GetMsg()))
-				time.Sleep(1000)
-
 				msgOut := routines.NewMessage("r2msgId:"+time.Now().String(), "r2Msg", "This is a message published from R2")
 				ctx.Publish(&msgOut)
 			}
 		}
 
+		fmt.Printf("Go routine (%s) ending...", ctx.GetRoutineName())
+		ctx.EndRoutine()
 		return nil
 	}
 	cr2, err := routines.NewStandardRoutine(rn2, r2)
@@ -85,7 +87,12 @@ func main() {
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
+
 	go c.Start(&wg)
-	wg.Wait()
+
+	time.Sleep(1000)
+
+	for c.IsRunning() {
+	}
 
 }

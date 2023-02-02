@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/binarycurious/light-container/telemetry"
 )
@@ -12,6 +13,7 @@ type RoutineContext struct {
 	inChan    <-chan RoutineMsg
 	outChan   chan<- RoutineMsg
 	container Container
+	wg        *sync.WaitGroup
 }
 
 // ContainerIsRunning - impl
@@ -20,8 +22,8 @@ func (c *RoutineContext) ContainerIsRunning() bool {
 }
 
 // NewRoutineContext - Create a standard context instance
-func NewRoutineContext(k *RoutineKey, c Container, inCh <-chan RoutineMsg, outCh chan<- RoutineMsg) *RoutineContext {
-	p := RoutineContext{key: k, container: c, inChan: inCh, outChan: outCh}
+func NewRoutineContext(k *RoutineKey, c Container, inCh <-chan RoutineMsg, outCh chan<- RoutineMsg, wg *sync.WaitGroup) *RoutineContext {
+	p := RoutineContext{key: k, container: c, inChan: inCh, outChan: outCh, wg: wg}
 	return &p
 }
 
@@ -75,4 +77,10 @@ func (c *RoutineContext) Send(key *RoutineKey, msg RoutineMsg) error {
 	fmt.Print(c.GetRoutineName())
 	c.GetLogger().LogDebug(fmt.Sprintf("Sending message %s to routine: (%s) from routine: (%s)", *msg.GetId(), *key.name, *c.key.name))
 	return c.container.Send(key, msg)
+}
+
+// EndRoutine - tear down method
+func (c *RoutineContext) EndRoutine() {
+	close(c.outChan)
+	c.wg.Done()
 }

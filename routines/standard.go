@@ -27,14 +27,6 @@ func (sr *StandardRoutine) Execute(ctx container.Context) error {
 	return sr.routine(ctx)
 }
 
-// // Subscribe @impl
-// func (sr *StandardRoutine) Subscribe() (<-chan container.RoutineMsg, error) {
-// 	if sr == nil {
-// 		return nil, fmt.Errorf("nil out channel, unable to subscribe")
-// 	}
-// 	return sr.outChan, nil
-// }
-
 // GetName impl
 func (sr *StandardRoutine) GetName() *string {
 	return sr.name
