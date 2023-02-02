@@ -18,10 +18,10 @@ const (
 
 // Logger interface for generic app logging
 type Logger interface {
-	Log(msg *string)
-	LogDebug(msg *string)
-	LogWarn(msg *string)
-	LogError(msg *string)
-	LogFatal(msg *string)
+	Log(msg string)
+	LogDebug(msg string)
+	LogWarn(msg string)
+	LogError(msg string)
+	LogFatal(msg string)
 	SetActiveLogLevel(LogLevel)
 }

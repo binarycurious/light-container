@@ -12,9 +12,10 @@ import (
 type GlobalContainer struct {
 	logger   telemetry.Logger
 	state    *GlobalState
-	routines map[RoutineKey]Routine
+	keys     map[string]RoutineKey // map of name : routine keys
+	routines map[string]Routine
 	inChans  map[string]chan RoutineMsg
-	outChans map[string]<-chan RoutineMsg
+	outChans map[string]chan RoutineMsg
 	subChans map[string][]chan RoutineMsg
 
 	running       bool
@@ -22,12 +23,13 @@ type GlobalContainer struct {
 }
 
 // NewDefaultContainer Setup a default GlobalContainer for registering Routines
-func (c GlobalContainer) NewDefaultContainer(state *GlobalState) Container {
-	return c.NewContainer(state, nil)
+func NewDefaultContainer(state *GlobalState) Container {
+	return NewContainer(state, nil)
 }
 
 // NewContainer - initialize a new IoC container, nil logger will create a new logger based on the globalstate settings
-func (c GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logger) Container {
+func NewContainer(state *GlobalState, logger telemetry.Logger) Container {
+	c := GlobalContainer{}
 
 	c.containerLock.Lock()
 
@@ -38,20 +40,20 @@ func (c GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logge
 
 	/*Setup channel register vars*/
 	c.inChans = make(map[string]chan RoutineMsg, 100)
-	c.outChans = make(map[string]<-chan RoutineMsg, 100)
+	c.outChans = make(map[string]chan RoutineMsg, 100)
 	c.subChans = make(map[string][]chan RoutineMsg, 100)
 
 	validSate := true
 
 	if !state.intitialized {
 		msg := "FATAL: Attempt to initialize container state with an un-initialized global state (call NewState())"
-		c.logger.LogFatal(&msg)
+		c.logger.LogFatal(msg)
 		validSate = false
 	}
 
 	if c.state != nil && c.state.intitialized {
 		msg := "FATAL: Attempt to set container state after already intialized"
-		c.logger.LogFatal(&msg)
+		c.logger.LogFatal(msg)
 		validSate = false
 	}
 
@@ -64,11 +66,17 @@ func (c GlobalContainer) NewContainer(state *GlobalState, logger telemetry.Logge
 	return Container(&c)
 }
 
-// GetRoutineKey : Get a key for given routine name (This does not take into account name conflicts / duplicates)
-func (c *GlobalContainer) GetRoutineKey(routineName *string) *RoutineKey {
+// GenRoutineKey : Get a key for given routine name (This does not take into account name conflicts / duplicates)
+func (c *GlobalContainer) GenRoutineKey(routineName *string) *RoutineKey {
 	return &RoutineKey{
 		name: routineName,
 		key:  fmt.Sprintf("%x", sha1.Sum([]byte(*routineName)))}
+}
+
+// GetRoutineKey -
+func (c *GlobalContainer) GetRoutineKey(routineName *string) *RoutineKey {
+	k := c.keys[*routineName]
+	return &k
 }
 
 /* Continer Impls */
@@ -84,59 +92,67 @@ func (c *GlobalContainer) GetLogger() telemetry.Logger {
 }
 
 // AddRoutine : impl of Container.AddRoutineWithName (will modify routineName if there is a conflict)
-func (c *GlobalContainer) AddRoutine(routine Routine) *RoutineKey {
-	return c.AddRoutineWithName(routine.GetName(), routine)
+func (c *GlobalContainer) AddRoutine(routine Routine) RoutineKey {
+	return c.AddNamedRoutine(routine.GetName(), routine)
 }
 
-// AddRoutineWithName : impl of Container.AddRoutineWithName (will modify routineName if there is a conflict)
-func (c *GlobalContainer) AddRoutineWithName(routineName *string, routine Routine) *RoutineKey {
+// AddNamedRoutine : impl of Container.AddNamedRoutine (will modify routineName if there is a conflict)
+func (c *GlobalContainer) AddNamedRoutine(routineName *string, routine Routine) RoutineKey {
+
 	c.containerLock.Lock()
 
 	if len(c.routines) == 0 {
-		c.routines = make(map[RoutineKey]Routine, 10)
+		c.keys = make(map[string]RoutineKey, 10)
+		c.routines = make(map[string]Routine, 10)
 	}
-	rKey := c.GetRoutineKey(routineName)
-	_, retry := c.routines[*rKey]
+	rKey := c.GenRoutineKey(routineName)
+	_, retry := c.routines[rKey.key]
 
 	retries := 0
 	for retry {
 		retries++
 		*routineName = fmt.Sprintf("%s_%d", *routineName, retries)
 		rKey = c.GetRoutineKey(routineName)
-		_, retry = c.routines[*rKey]
+		_, retry = c.routines[rKey.key]
 	}
 
-	c.routines[*rKey] = routine
+	c.keys[*rKey.name] = *rKey
+	c.routines[rKey.key] = routine
+
+	rInCh := make(chan RoutineMsg)
+	c.inChans[rKey.key] = rInCh
+
+	rOutCh := make(chan RoutineMsg)
+	c.outChans[rKey.key] = rOutCh
 
 	c.containerLock.Unlock()
-	return rKey
+	return *rKey
 }
 
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *RoutineKey) error {
-	c.containerLock.Lock()
 
-	ctx := RoutineContext{}.NewRoutineContext(key, Container(c))
-	rcvr := make(chan RoutineMsg)
-	c.inChans[key.key] = rcvr
-	sc, err := c.routines[*key].Subscribe()
-	if err != nil {
-		return err
-	}
-	c.outChans[key.key] = sc
+	rInCh := c.inChans[key.key]
+	rOutCh := c.outChans[key.key]
 
-	c.containerLock.Unlock()
+	ctx := NewRoutineContext(key, Container(c), rInCh, rOutCh)
 
-	go (c.routines[*key]).Execute(Context(ctx), rcvr)
+	go (c.routines[key.key]).Execute(Context(ctx))
 
 	return nil
+}
+
+// ExecuteWait - execute with WG
+func (c *GlobalContainer) ExecuteWait(key *RoutineKey, wg *sync.WaitGroup) error {
+	defer wg.Done()
+	return c.Execute(key)
 }
 
 // Send @impl - send to a routine channel
 func (c *GlobalContainer) Send(key *RoutineKey, msg RoutineMsg) error {
 
 	if c.inChans[key.key] == nil {
-		return fmt.Errorf("Cannot sending msg to nil channel for routineKey %#v", key)
+		return fmt.Errorf("Cannot send msg to nil channel for routineKey %#v", key)
 	}
 
 	c.inChans[key.key] <- msg
@@ -145,7 +161,7 @@ func (c *GlobalContainer) Send(key *RoutineKey, msg RoutineMsg) error {
 
 // Subscribe @impl - subscribe to a given routine channel
 func (c *GlobalContainer) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) {
-	c.containerLock.Lock()
+
 	var sc chan RoutineMsg
 	if c.outChans[key.key] != nil {
 		sc = make(chan RoutineMsg)
@@ -153,23 +169,43 @@ func (c *GlobalContainer) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) 
 	} else {
 		return nil, fmt.Errorf("No out channel matching key")
 	}
-	c.containerLock.Unlock()
 
 	return sc, nil
 }
 
 // Start @impl Continer.Start - Spins up all container routines and msg wiring
-func (c *GlobalContainer) Start() {
+func (c *GlobalContainer) Start(wg *sync.WaitGroup) {
+	defer (*wg).Done()
+	c.containerLock.Lock()
 
-	go func() {
-		for k := range c.routines {
-			c.Execute(&k)
-		}
-	}()
+	if c.running {
+		err := "Attempting to start a container that is already running is not allowed!"
+		c.logger.LogError(err)
+		return
+	}
 
 	c.running = true
+	c.containerLock.Unlock()
+
+	go func(c *GlobalContainer) {
+		routineWg := sync.WaitGroup{}
+
+		for k := range c.keys {
+			routineWg.Add(1)
+			rk := c.keys[k]
+			go c.ExecuteWait(&rk, &routineWg)
+			fmt.Printf("running go execute %s\n", *rk.name)
+		}
+		routineWg.Wait()
+	}(c)
+
 	for c.running == true {
 		for k, oc := range c.outChans {
+			subCnt := len(c.subChans)
+			if subCnt < 1 {
+				continue
+			}
+
 			select {
 			case msg := <-oc:
 				for i := range c.subChans[k] {
@@ -186,6 +222,12 @@ func (c *GlobalContainer) Start() {
 			close(arr[i])
 		}
 	}
+
+}
+
+// IsRunning - impl is container.IsRunning
+func (c *GlobalContainer) IsRunning() bool {
+	return c.running
 }
 
 // Stop @impl Container.Stop - Stops the container routines

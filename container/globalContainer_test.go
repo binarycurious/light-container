@@ -32,7 +32,7 @@ func TestGlobalContainer_registerOutChannel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := GlobalState{settings: config.Settings{Hardfail: false}}
-			c := GlobalContainer{}.NewDefaultContainer(&s)
+			c := NewDefaultContainer(&s)
 			fmt.Print(c.GetState().intitialized)
 
 		})

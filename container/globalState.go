@@ -15,7 +15,7 @@ func (gs *GlobalState) NewState(settings *config.Settings) *GlobalState {
 	if gs.intitialized {
 		lgr := GlobalLogger{hardfail: settings.Hardfail}
 		msg := "FATAL: Attempt to set global state after already intialized"
-		lgr.LogFatal(&msg)
+		lgr.LogFatal(msg)
 	}
 
 	gs.settings = *settings

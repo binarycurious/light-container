@@ -13,41 +13,41 @@ type GlobalLogger struct {
 	loglevel telemetry.LogLevel
 }
 
-// Log (log *string) //info level logging
-func (l *GlobalLogger) Log(msg *string) {
+// Log (log string) //info level logging
+func (l *GlobalLogger) Log(msg string) {
 	if l.loglevel <= telemetry.LogLevelInfo {
-		fmt.Printf("INFO: %s", *msg)
+		fmt.Printf("INFO: %s\n", msg)
 	}
 }
 
-// LogDebug (msg *string)
-func (l *GlobalLogger) LogDebug(msg *string) {
+// LogDebug (msg string)
+func (l *GlobalLogger) LogDebug(msg string) {
 	if l.loglevel <= telemetry.LogLevelDebug {
-		fmt.Printf("DEBUG: %s", *msg)
+		fmt.Printf("DEBUG: %s\n", msg)
 	}
 }
 
-// LogWarn (msg *string)
-func (l *GlobalLogger) LogWarn(msg *string) {
+// LogWarn (msg string)
+func (l *GlobalLogger) LogWarn(msg string) {
 	if l.loglevel <= telemetry.LogLevelWarn {
-		fmt.Printf("WARN: %s", *msg)
+		fmt.Printf("WARN: %s\n", msg)
 	}
 }
 
-// LogError (msg *string)
-func (l *GlobalLogger) LogError(msg *string) {
+// LogError (msg string)
+func (l *GlobalLogger) LogError(msg string) {
 	if l.loglevel <= telemetry.LogLevelError {
-		fmt.Printf("ERROR: %s", *msg)
+		fmt.Printf("ERROR: %s\n", msg)
 	}
 }
 
-// LogFatal (msg *string, hardfail)
-func (l *GlobalLogger) LogFatal(msg *string) {
+// LogFatal (msg string, hardfail)
+func (l *GlobalLogger) LogFatal(msg string) {
 	if !l.hardfail {
-		log.Print(*msg)
+		log.Printf("FATAL: %s\n", msg)
 		return
 	}
-	log.Fatal(*msg)
+	log.Fatal(msg)
 }
 
 // SetActiveLogLevel (LogLevel)
