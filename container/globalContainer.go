@@ -12,7 +12,7 @@ import (
 type GlobalContainer struct {
 	logger   telemetry.Logger
 	state    *GlobalState
-	keys     map[string]RoutineKey // map of name : routine keys
+	keys     map[string]RoutineKey // map of name : routinekey
 	routines map[string]Routine
 	inChans  map[string]chan RoutineMsg
 	outChans map[string]chan RoutineMsg

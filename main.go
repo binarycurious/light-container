@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/binarycurious/light-container/config"
 	"github.com/binarycurious/light-container/container"
@@ -17,12 +18,27 @@ func main() {
 	rn2 := "test-routine-2"
 
 	r := func(ctx container.Context) error {
-		ctx.GetLogger().Log("This is a test log - 1, using ctx")
+		logger := ctx.GetLogger()
+		logger.Log("This is a test log - 1, using ctx")
 		msg := routines.NewMessage("testid", "testname", "test msg")
 
-		k := ctx.GetRoutineKey(&rn2)
+		r2key := ctx.GetRoutineKey(&rn2)
 
-		ctx.Send(&k, container.RoutineMsg(&msg))
+		ctx.Send(&r2key, container.RoutineMsg(&msg))
+
+		for ctx.ContainerIsRunning() {
+			r2ch, err := ctx.Subscribe(&r2key)
+			if err != nil {
+				logger.LogFatal("Failed to subscribe to r2 out channel")
+			}
+			select {
+			case r2msg := <-r2ch:
+				switch msgVal := r2msg.GetMsg().(type) {
+				case string:
+					logger.LogDebug("Message received: " + msgVal)
+				}
+			}
+		}
 
 		return nil
 	}
@@ -31,7 +47,7 @@ func main() {
 	if err != nil {
 		c.GetLogger().LogError("Failed to register routine")
 	}
-	c.AddRoutine(cr)
+	_ = c.AddRoutine(cr)
 
 	r2 := func(ctx container.Context) error {
 
@@ -50,6 +66,10 @@ func main() {
 			case msg := <-ch:
 				logger.Log("Received msg on routine: " + ctx.GetRoutineName())
 				logger.Log(fmt.Sprint((msg).GetMsg()))
+				time.Sleep(1000)
+
+				msgOut := routines.NewMessage("r2msgId:"+time.Now().String(), "r2Msg", "This is a message published from R2")
+				ctx.Publish(&msgOut)
 			}
 		}
 
@@ -61,7 +81,7 @@ func main() {
 		fmt.Printf(err.Error())
 	}
 
-	c.AddRoutine(cr2)
+	_ = c.AddRoutine(cr2)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)

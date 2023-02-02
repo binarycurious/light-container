@@ -65,7 +65,7 @@ func (c *RoutineContext) GetLogger() telemetry.Logger {
 
 // Subscribe @impl
 func (c *RoutineContext) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) {
-	log := fmt.Sprintf("Subscribed to routine channel: %#v , from routine: %#v", key, c.key)
+	log := fmt.Sprintf("Subscribed to routine channel: %s , from routine: %s", *key.name, *c.key.name)
 	c.GetLogger().LogDebug(log)
 	return c.container.Subscribe(key)
 }
