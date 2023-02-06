@@ -82,5 +82,4 @@ func (c *RoutineContext) Send(key *RoutineKey, msg RoutineMsg) error {
 // EndRoutine - tear down method
 func (c *RoutineContext) EndRoutine() {
 	close(c.outChan)
-	c.wg.Done()
 }

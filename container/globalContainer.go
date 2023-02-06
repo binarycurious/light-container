@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/binarycurious/light-container/telemetry"
 )
@@ -17,9 +18,11 @@ type GlobalContainer struct {
 	inChans  map[string]chan RoutineMsg
 	outChans map[string]chan RoutineMsg
 	subChans map[string][]chan RoutineMsg
+	stopChan chan bool
 
 	running       bool
 	containerLock sync.Mutex
+	routineWg     *sync.WaitGroup
 }
 
 // NewDefaultContainer Setup a default GlobalContainer for registering Routines
@@ -42,6 +45,7 @@ func NewContainer(state *GlobalState, logger telemetry.Logger) Container {
 	c.inChans = make(map[string]chan RoutineMsg, 100)
 	c.outChans = make(map[string]chan RoutineMsg, 100)
 	c.subChans = make(map[string][]chan RoutineMsg, 100)
+	c.stopChan = make(chan bool)
 
 	validSate := true
 
@@ -96,6 +100,15 @@ func (c *GlobalContainer) AddRoutine(routine Routine) RoutineKey {
 	return c.AddNamedRoutine(routine.GetName(), routine)
 }
 
+// AddStandardRoutine - container impl
+func (c *GlobalContainer) AddStandardRoutine(routineName string, routine func(c Context) error) RoutineKey {
+	r, err := NewStandardRoutine(routineName, routine)
+	if err != nil {
+		c.logger.LogError(err.Error())
+	}
+	return c.AddRoutine(r)
+}
+
 // AddNamedRoutine : impl of Container.AddNamedRoutine (will modify routineName if there is a conflict)
 func (c *GlobalContainer) AddNamedRoutine(routineName *string, routine Routine) RoutineKey {
 
@@ -131,15 +144,14 @@ func (c *GlobalContainer) AddNamedRoutine(routineName *string, routine Routine) 
 
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *RoutineKey, wg *sync.WaitGroup) error {
+	defer wg.Done()
 
 	rInCh := c.inChans[key.key]
 	rOutCh := c.outChans[key.key]
 
 	ctx := NewRoutineContext(key, Container(c), rInCh, rOutCh, wg)
 
-	(c.routines[key.key]).Execute(Context(ctx))
-
-	return nil
+	return (c.routines[key.key]).Execute(Context(ctx))
 }
 
 // Send @impl - send to a routine channel
@@ -168,8 +180,9 @@ func (c *GlobalContainer) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) 
 }
 
 // Start @impl Continer.Start - Spins up all container routines and msg wiring
-func (c *GlobalContainer) Start(wg *sync.WaitGroup) {
-	defer (*wg).Done()
+func (c *GlobalContainer) Start() {
+	wg := sync.WaitGroup{}
+	c.routineWg = &wg
 
 	c.containerLock.Lock()
 
@@ -182,40 +195,52 @@ func (c *GlobalContainer) Start(wg *sync.WaitGroup) {
 	c.running = true
 	c.containerLock.Unlock()
 
-	go func(c *GlobalContainer) {
+	wg.Add(1)
+	go func(c *GlobalContainer, wg *sync.WaitGroup) {
+		defer wg.Done()
+
 		for k := range c.keys {
-			(*wg).Add(1)
 			rk := c.keys[k]
-			go c.Execute(&rk, wg)
-			fmt.Printf("running go execute %s\n", *rk.name)
+			wg.Add(1)
+
+			go func() {
+				fmt.Printf("running go execute %s\n", *rk.name)
+				err := c.Execute(&rk, wg)
+				if err != nil {
+					c.logger.LogError(err.Error())
+				}
+			}()
+
 		}
-		wg.Wait()
-	}(c)
+	}(c, &wg)
 
-	for c.running == true {
-		for k, oc := range c.outChans {
-			subCnt := len(c.subChans)
-			if subCnt < 1 {
-				continue
-			}
-
-			select {
-			case msg := <-oc:
-				for i := range c.subChans[k] {
-					c.subChans[k][i] <- msg
+	for k, oc := range c.outChans {
+		subCnt := len(c.subChans)
+		if subCnt < 1 {
+			continue
+		}
+		go func(k string, oc <-chan RoutineMsg) {
+			for c.IsRunning() {
+				select {
+				case msg := <-oc:
+					for i := range c.subChans[k] {
+						c.subChans[k][i] <- msg
+					}
 				}
 			}
-		}
-	}
-	for _, val := range c.inChans {
-		close(val)
-	}
-	for _, arr := range c.subChans {
-		for i := range arr {
-			close(arr[i])
-		}
+		}(k, oc)
 	}
 
+	wg.Add(1)
+	go func(c *GlobalContainer) {
+		for c.IsRunning() {
+			select {
+			case s := <-c.stopChan:
+				c.logger.Log(fmt.Sprintf("Stop signal received : %v", s))
+			}
+		}
+		wg.Done()
+	}(c)
 }
 
 // IsRunning - impl is container.IsRunning
@@ -225,5 +250,41 @@ func (c *GlobalContainer) IsRunning() bool {
 
 // Stop @impl Container.Stop - Stops the container routines
 func (c *GlobalContainer) Stop() {
+	c.containerLock.Lock()
 	c.running = false
+	c.containerLock.Unlock()
+	c.stopChan <- true
+}
+
+// Wait for all of the containers go routines to end
+func (c *GlobalContainer) Wait() {
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	go func(wg *sync.WaitGroup) {
+		fmt.Print("testloop")
+		select {
+		case s := <-c.stopChan:
+			c.logger.Log(fmt.Sprintf("Stop signal received : %v", s))
+			wg.Done()
+			return
+		}
+	}(&wg)
+
+	wg.Add(1)
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second):
+				if !c.IsRunning() {
+					wg.Done()
+				}
+			}
+		}
+	}()
+
+	wg.Wait()
+
 }
