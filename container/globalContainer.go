@@ -260,17 +260,6 @@ func (c *GlobalContainer) Stop() {
 func (c *GlobalContainer) Wait() {
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-
-	go func(wg *sync.WaitGroup) {
-		fmt.Print("testloop")
-		select {
-		case s := <-c.stopChan:
-			c.logger.Log(fmt.Sprintf("Stop signal received : %v", s))
-			wg.Done()
-			return
-		}
-	}(&wg)
 
 	wg.Add(1)
 
