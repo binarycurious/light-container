@@ -67,19 +67,12 @@ func (c *RoutineContext) GetLogger() telemetry.Logger {
 
 // Subscribe @impl
 func (c *RoutineContext) Subscribe(key *RoutineKey) (<-chan RoutineMsg, error) {
-	log := fmt.Sprintf("Subscribed to routine channel: %s , from routine: %s", *key.name, *c.key.name)
-	c.GetLogger().LogDebug(log)
+	c.GetLogger().LogDebug(fmt.Sprintf("Subscribed to routine channel: %s , from routine: %s", *key.name, *c.key.name))
 	return c.container.Subscribe(key)
 }
 
 // Send @impl
 func (c *RoutineContext) Send(key *RoutineKey, msg RoutineMsg) error {
-	fmt.Print(c.GetRoutineName())
 	c.GetLogger().LogDebug(fmt.Sprintf("Sending message %s to routine: (%s) from routine: (%s)", *msg.GetId(), *key.name, *c.key.name))
 	return c.container.Send(key, msg)
-}
-
-// EndRoutine - tear down method
-func (c *RoutineContext) EndRoutine() {
-	close(c.outChan)
 }

@@ -34,7 +34,6 @@ type Context interface {
 	Publish(msg RoutineMsg) error
 	GetReceiver() (<-chan RoutineMsg, error)
 	ContainerIsRunning() bool
-	EndRoutine()
 }
 
 // Routine - defines the routine that is executed by the container and the channel that it exports for subscription

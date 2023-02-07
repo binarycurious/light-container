@@ -38,8 +38,8 @@ func main() {
 				}
 			}
 		}
-		fmt.Printf("Go routine (%s) ending...", ctx.GetRoutineName())
-		ctx.EndRoutine()
+		fmt.Printf("Go routine (%s) ending...\n", ctx.GetRoutineName())
+
 		return nil
 	}
 
@@ -70,8 +70,8 @@ func main() {
 		for ctx.ContainerIsRunning() {
 		}
 
-		fmt.Printf("Go routine (%s) ending...", ctx.GetRoutineName())
-		ctx.EndRoutine()
+		fmt.Printf("Go routine (%s) ending...\n", ctx.GetRoutineName())
+
 		return nil
 	})
 	go c.Start()

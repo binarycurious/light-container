@@ -145,10 +145,10 @@ func (c *GlobalContainer) AddNamedRoutine(routineName *string, routine Routine) 
 // Execute : impl of container Execute function
 func (c *GlobalContainer) Execute(key *RoutineKey, wg *sync.WaitGroup) error {
 	defer wg.Done()
-
+	c.containerLock.Lock()
 	rInCh := c.inChans[key.key]
 	rOutCh := c.outChans[key.key]
-
+	c.containerLock.Unlock()
 	ctx := NewRoutineContext(key, Container(c), rInCh, rOutCh, wg)
 
 	return (c.routines[key.key]).Execute(Context(ctx))
@@ -204,7 +204,7 @@ func (c *GlobalContainer) Start() {
 			wg.Add(1)
 
 			go func() {
-				fmt.Printf("running go execute %s\n", *rk.name)
+				c.logger.LogDebug(fmt.Sprintf("Executing Container Routine : %s\n", *rk.name))
 				err := c.Execute(&rk, wg)
 				if err != nil {
 					c.logger.LogError(err.Error())
@@ -215,10 +215,6 @@ func (c *GlobalContainer) Start() {
 	}(c, &wg)
 
 	for k, oc := range c.outChans {
-		subCnt := len(c.subChans)
-		if subCnt < 1 {
-			continue
-		}
 		go func(k string, oc <-chan RoutineMsg) {
 			for c.IsRunning() {
 				select {
