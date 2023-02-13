@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/binarycurious/light-container/config"
 	"github.com/binarycurious/light-container/container"
+	"github.com/binarycurious/light-container/routines"
 	"github.com/binarycurious/light-container/telemetry"
 )
 
@@ -74,10 +76,20 @@ func main() {
 
 		return nil
 	})
+
+	/*e.g. http server */
+	httpSrvr := routines.NewHttpServerRoutine("localhost", 8899, 3, 3)
+	httpSrvr.RegisterHandlerFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println(r.Header)
+		w.Write([]byte{10})
+	})
+
+	c.AddRoutine(&httpSrvr)
+
 	go c.Start()
 
 	go func() {
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 20)
 		c.Stop()
 	}()
 
